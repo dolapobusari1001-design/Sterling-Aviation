@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sterling Aviation — Private Jet Charter Nigeria</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #C9A84C; --gold-light: #E8D08A; --gold-pale: #F5EDD4;
+    --black: #0A0A0A; --dark: #111111; --dark2: #1A1A1A; --dark3: #242424;
+    --white: #F9F5EE; --font-display: 'Cormorant Garamond', serif; --font-body: 'Montserrat', sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--black); color: var(--white); font-family: var(--font-body); font-weight: 300; overflow-x: hidden; }
+
+  /* MODALS */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--dark2); border: 1px solid rgba(201,168,76,0.2); padding: 2.5rem; width: 90%; max-width: 420px; position: relative; max-height: 90vh; overflow-y: auto; }
+  .modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: rgba(249,245,238,0.4); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: var(--gold); }
+  .modal-title { font-family: var(--font-display); font-size: 1.8rem; font-weight: 400; margin-bottom: 0.3rem; }
+  .modal-sub { font-size: 0.72rem; color: rgba(249,245,238,0.4); margin-bottom: 1.5rem; letter-spacing: 0.04em; }
+  .modal-tabs { display: flex; gap: 0; border: 1px solid rgba(201,168,76,0.2); border-radius: 4px; overflow: hidden; margin-bottom: 1.5rem; }
+  .modal-tab { flex: 1; padding: 0.7rem; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; border: none; background: transparent; color: rgba(249,245,238,0.4); cursor: pointer; font-family: var(--font-body); transition: all 0.2s; }
+  .modal-tab.active { background: var(--gold); color: var(--black); }
+  .auth-form { display: none; } .auth-form.active { display: block; }
+  .fg { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+  .fg label { font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(249,245,238,0.45); }
+  .fg input, .fg select, .fg textarea { background: rgba(201,168,76,0.04); border: 1px solid rgba(201,168,76,0.18); color: var(--white); font-family: var(--font-body); font-size: 0.82rem; padding: 0.75rem 1rem; outline: none; transition: border-color 0.3s; width: 100%; appearance: none; }
+  .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--gold); }
+  .fg input::placeholder, .fg textarea::placeholder { color: rgba(249,245,238,0.25); }
+  .fg select option { background: #1A1A1A; }
+  .submit-btn { width: 100%; background: var(--gold); color: var(--black); border: none; font-family: var(--font-body); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; padding: 1rem; cursor: pointer; transition: background 0.3s; margin-top: 0.5rem; }
+  .submit-btn:hover { background: var(--gold-light); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-switch { text-align: center; margin-top: 1rem; font-size: 0.72rem; color: rgba(249,245,238,0.4); }
+  .auth-switch a { color: var(--gold); cursor: pointer; text-decoration: underline; }
+  .error-msg { background: rgba(220,50,50,0.1); border: 1px solid rgba(220,50,50,0.3); color: #ff6b6b; font-size: 0.72rem; padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; }
+  .success-msg { background: rgba(50,180,50,0.1); border: 1px solid rgba(50,180,50,0.3); color: #5dca7a; font-size: 0.72rem; padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; }
+
+  /* DASHBOARD MODAL */
+  .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .dash-greeting { font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; }
+  .dash-greeting span { color: var(--gold); font-style: italic; }
+  .signout-btn { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(249,245,238,0.4); background: none; border: 1px solid rgba(201,168,76,0.18); padding: 0.4rem 0.9rem; cursor: pointer; font-family: var(--font-body); transition: all 0.2s; }
+  .signout-btn:hover { color: var(--gold); border-color: var(--gold); }
+  .wallet-card { background: var(--dark3); border: 1px solid rgba(201,168,76,0.25); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.2rem; position: relative; overflow: hidden; }
+  .wallet-card::before { content: ''; position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; background: rgba(201,168,76,0.05); border-radius: 50%; }
+  .wc-label { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(249,245,238,0.35); margin-bottom: 0.3rem; }
+  .wc-balance { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--gold); margin-bottom: 1rem; }
+  .wc-btns { display: flex; gap: 0.7rem; }
+  .wc-btn { flex: 1; padding: 0.6rem; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid rgba(201,168,76,0.25); background: transparent; color: rgba(249,245,238,0.6); cursor: pointer; font-family: var(--font-body); transition: all 0.2s; }
+  .wc-btn.primary { background: var(--gold); border-color: var(--gold); color: var(--black); }
+  .wc-btn:hover { opacity: 0.8; }
+  .dash-section { margin-bottom: 1.2rem; }
+  .dash-section-title { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(249,245,238,0.35); margin-bottom: 0.8rem; }
+  .booking-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 0; border-bottom: 1px solid rgba(201,168,76,0.07); }
+  .booking-item:last-child { border-bottom: none; }
+  .bi-icon { width: 2.2rem; height: 2.2rem; background: var(--dark3); border: 1px solid rgba(201,168,76,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gold); font-size: 0.75rem; }
+  .bi-info { flex: 1; }
+  .bi-route { font-size: 0.82rem; font-weight: 500; }
+  .bi-date { font-size: 0.68rem; color: rgba(249,245,238,0.4); margin-top: 0.15rem; }
+  .bi-status { font-size: 0.62rem; padding: 0.2rem 0.5rem; border-radius: 3px; }
+  .bi-status.pending { background: rgba(201,168,76,0.12); color: var(--gold); }
+  .bi-status.confirmed { background: rgba(50,180,50,0.12); color: #5dca7a; }
+  .bi-amount { font-size: 0.82rem; font-weight: 500; color: var(--gold); }
+  .topup-amounts { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  .ta-pill { padding: 0.6rem; border: 1px solid rgba(201,168,76,0.18); background: transparent; color: rgba(249,245,238,0.5); font-size: 0.7rem; font-weight: 500; cursor: pointer; font-family: var(--font-body); transition: all 0.2s; text-align: center; }
+  .ta-pill.selected, .ta-pill:hover { background: rgba(201,168,76,0.12); border-color: var(--gold); color: var(--gold); }
+  .tx-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid rgba(201,168,76,0.06); }
+  .tx-item:last-child { border-bottom: none; }
+  .tx-dot { width: 1.8rem; height: 1.8rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.7rem; }
+  .tx-dot.cr { background: rgba(50,180,50,0.15); color: #5dca7a; }
+  .tx-dot.db { background: rgba(201,168,76,0.1); color: var(--gold); }
+  .tx-info { flex: 1; }
+  .tx-name { font-size: 0.78rem; font-weight: 500; }
+  .tx-date { font-size: 0.65rem; color: rgba(249,245,238,0.35); margin-top: 0.1rem; }
+  .tx-val { font-size: 0.78rem; font-weight: 600; }
+  .tx-val.cr { color: #5dca7a; }
+  .tx-val.db { color: var(--gold); }
+  .empty-state { text-align: center; padding: 1.5rem; color: rgba(249,245,238,0.3); font-size: 0.75rem; }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 4rem; border-bottom: 1px solid rgba(201,168,76,0.15); background: rgba(10,10,10,0.92); backdrop-filter: blur(12px); }
+  .logo { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; letter-spacing: 0.08em; color: var(--gold); text-decoration: none; cursor: pointer; }
+  .logo span { color: var(--white); font-weight: 300; }
+  nav ul { list-style: none; display: flex; gap: 2.5rem; }
+  nav ul a { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(249,245,238,0.7); text-decoration: none; transition: color 0.3s; cursor: pointer; }
+  nav ul a:hover { color: var(--gold); }
+  .nav-right { display: flex; gap: 0.8rem; align-items: center; }
+  .nav-cta { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--black); background: var(--gold); padding: 0.6rem 1.6rem; border: none; cursor: pointer; font-family: var(--font-body); transition: background 0.3s; }
+  .nav-cta:hover { background: var(--gold-light); }
+  .nav-login { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); background: transparent; border: 1px solid rgba(201,168,76,0.35); padding: 0.6rem 1.4rem; cursor: pointer; font-family: var(--font-body); transition: all 0.3s; }
+  .nav-login:hover { border-color: var(--gold); }
+  .nav-user { display: none; align-items: center; gap: 0.8rem; }
+  .nav-user.show { display: flex; }
+  .nav-avatar { width: 2rem; height: 2rem; border-radius: 50%; background: rgba(201,168,76,0.2); border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: var(--gold); cursor: pointer; }
+  .nav-user-name { font-size: 0.72rem; color: rgba(249,245,238,0.7); cursor: pointer; }
+  .nav-auth-btns { display: flex; gap: 0.8rem; }
+
+  /* HERO */
+  .hero { position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 0 4rem; overflow: hidden; }
+  .hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 70% 50%, rgba(201,168,76,0.06) 0%, transparent 70%), linear-gradient(135deg, #0A0A0A 0%, #141410 100%); }
+  .hero-line { position: absolute; top: 0; bottom: 0; left: 58%; width: 1px; background: linear-gradient(to bottom, transparent, rgba(201,168,76,0.25) 30%, rgba(201,168,76,0.25) 70%, transparent); }
+  .hero-tagline { font-size: 0.7rem; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+  .hero-tagline::before { content: ''; display: inline-block; width: 2.5rem; height: 1px; background: var(--gold); }
+  .hero h1 { font-family: var(--font-display); font-size: clamp(3.5rem, 7vw, 7rem); font-weight: 300; line-height: 1.05; max-width: 700px; margin-bottom: 1.5rem; animation: fadeUp 1s ease 0.3s both; }
+  .hero h1 em { font-style: italic; color: var(--gold); }
+  .hero-sub { font-size: 0.85rem; letter-spacing: 0.05em; color: rgba(249,245,238,0.55); max-width: 400px; line-height: 1.9; margin-bottom: 3rem; animation: fadeUp 1s ease 0.5s both; }
+  .hero-actions { display: flex; gap: 1.2rem; align-items: center; animation: fadeUp 1s ease 0.7s both; }
+  .btn-primary { display: inline-block; background: var(--gold); color: var(--black); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; text-decoration: none; padding: 1rem 2.5rem; transition: background 0.3s; border: none; cursor: pointer; font-family: var(--font-body); }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-outline { display: inline-block; border: 1px solid rgba(201,168,76,0.4); color: var(--gold); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; text-decoration: none; padding: 1rem 2.5rem; transition: border-color 0.3s; background: transparent; cursor: pointer; font-family: var(--font-body); }
+  .btn-outline:hover { border-color: var(--gold); }
+  .hero-stats { position: absolute; right: 4rem; bottom: 4rem; display: flex; flex-direction: column; gap: 2rem; align-items: flex-end; }
+  .stat-num { font-family: var(--font-display); font-size: 2.8rem; font-weight: 600; color: var(--gold); line-height: 1; }
+  .stat-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(249,245,238,0.35); margin-top: 0.25rem; text-align: right; }
+
+  /* SECTIONS */
+  section { padding: 7rem 4rem; }
+  .section-label { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; }
+  .section-label::before { content: ''; display: inline-block; width: 2rem; height: 1px; background: var(--gold); }
+  .section-title { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.8rem); font-weight: 300; line-height: 1.1; }
+  .section-title em { font-style: italic; color: var(--gold); }
+  .gold-divider { width: 3rem; height: 1px; background: var(--gold); margin: 2rem 0; }
+
+  /* SERVICES */
+  #services { background: var(--dark); }
+  .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(201,168,76,0.1); margin-top: 4rem; border: 1px solid rgba(201,168,76,0.1); }
+  .service-card { background: var(--dark); padding: 3rem 2.5rem; position: relative; transition: background 0.4s; }
+  .service-card:hover { background: var(--dark2); }
+  .service-icon { width: 3rem; height: 3rem; border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; color: var(--gold); }
+  .service-card h3 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; margin-bottom: 1rem; }
+  .service-card p { font-size: 0.8rem; color: rgba(249,245,238,0.5); line-height: 1.9; }
+  .service-num { position: absolute; top: 2rem; right: 2.5rem; font-family: var(--font-display); font-size: 3.5rem; font-weight: 300; color: rgba(201,168,76,0.07); line-height: 1; }
+
+  /* BOOKING */
+  #booking { background: var(--black); display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
+  .booking-form { background: var(--dark2); border: 1px solid rgba(201,168,76,0.15); padding: 3rem; }
+  .form-title { font-family: var(--font-display); font-size: 1.8rem; font-weight: 400; margin-bottom: 0.5rem; }
+  .form-sub { font-size: 0.75rem; color: rgba(249,245,238,0.4); letter-spacing: 0.05em; margin-bottom: 2rem; }
+  .toggle-row { display: flex; gap: 0; margin-bottom: 1rem; border: 1px solid rgba(201,168,76,0.18); }
+  .toggle-btn { flex: 1; padding: 0.7rem; font-size: 0.62rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; border: none; background: transparent; color: rgba(249,245,238,0.4); cursor: pointer; font-family: var(--font-body); transition: all 0.2s; }
+  .toggle-btn.active { background: var(--gold); color: var(--black); font-weight: 600; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+
+  /* FLEET */
+  #fleet { background: var(--dark); }
+  .fleet-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4rem; }
+  .fleet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .jet-card { border: 1px solid rgba(201,168,76,0.12); overflow: hidden; transition: border-color 0.4s, transform 0.4s; }
+  .jet-card:hover { border-color: rgba(201,168,76,0.4); transform: translateY(-4px); }
+  .jet-visual { height: 160px; background: var(--dark3); display: flex; align-items: center; justify-content: center; position: relative; }
+  .jet-visual::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+  .jet-visual svg { width: 75%; opacity: 0.55; }
+  .jet-info { padding: 1.5rem; }
+  .jet-category { font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.4rem; }
+  .jet-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 400; margin-bottom: 0.8rem; }
+  .jet-specs { display: flex; gap: 1.2rem; }
+  .jet-spec { font-size: 0.65rem; color: rgba(249,245,238,0.4); }
+  .jet-spec strong { display: block; font-weight: 500; color: var(--white); font-size: 0.8rem; margin-bottom: 0.15rem; }
+
+  /* WALLET SECTION */
+  #wallet-section { background: var(--black); display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+  .wallet-preview { background: var(--dark3); border: 1px solid rgba(201,168,76,0.25); border-radius: 10px; padding: 2rem; max-width: 360px; }
+  .wp-chip { width: 2.2rem; height: 1.6rem; background: linear-gradient(135deg, #C9A84C, #7a5c1a); border-radius: 3px; margin-bottom: 1.5rem; }
+  .wp-logo { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: var(--gold); text-align: right; margin-bottom: 1.5rem; }
+  .wp-num { font-family: monospace; font-size: 0.85rem; letter-spacing: 0.2em; color: rgba(249,245,238,0.6); margin-bottom: 1.5rem; }
+  .wp-bot { display: flex; justify-content: space-between; align-items: flex-end; }
+  .wp-holder-label { font-size: 0.55rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(249,245,238,0.3); }
+  .wp-name { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; margin-top: 0.2rem; }
+  .wp-bal-label { font-size: 0.52rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(249,245,238,0.3); text-align: right; }
+  .wp-balance { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--gold); text-align: right; }
+  .wallet-features { display: flex; flex-direction: column; gap: 0.8rem; margin: 1.5rem 0 2rem; }
+  .wallet-feature { display: flex; align-items: center; gap: 0.8rem; font-size: 0.78rem; color: rgba(249,245,238,0.55); }
+  .wallet-feature::before { content: ''; width: 1.2rem; height: 1px; background: var(--gold); flex-shrink: 0; }
+
+  /* CARS */
+  #cars { background: var(--dark); text-align: center; }
+  .cars-inner { max-width: 700px; margin: 0 auto; }
+  .cars-inner .section-label { justify-content: center; }
+  .cars-inner .section-label::before { display: none; }
+  .cars-inner .gold-divider { margin: 2rem auto; }
+  .cars-inner > p { font-size: 0.85rem; color: rgba(249,245,238,0.5); line-height: 1.9; margin-bottom: 3rem; }
+  .cars-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.08); margin-top: 4rem; text-align: left; }
+  .car-item { padding: 2rem; background: var(--dark); }
+  .car-badge { display: inline-block; font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(201,168,76,0.25); padding: 0.25rem 0.6rem; margin-bottom: 0.8rem; }
+  .car-item h3 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 400; }
+  .car-item p { font-size: 0.7rem; color: rgba(249,245,238,0.35); line-height: 1.7; }
+
+  /* TESTIMONIALS */
+  #testimonials { background: var(--black); }
+  .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-top: 4rem; }
+  .testimonial { padding: 2.5rem; border: 1px solid rgba(201,168,76,0.1); position: relative; }
+  .testimonial::before { content: '\201C'; font-family: var(--font-display); font-size: 5rem; color: rgba(201,168,76,0.12); position: absolute; top: 0.5rem; left: 1.5rem; line-height: 1; }
+  .testimonial p { font-size: 0.82rem; color: rgba(249,245,238,0.55); line-height: 1.9; margin-bottom: 1.5rem; font-style: italic; }
+  .testimonial-author { font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; }
+  .testimonial-role { font-size: 0.65rem; color: var(--gold); margin-top: 0.25rem; }
+
+  /* FOOTER */
+  footer { background: var(--dark); border-top: 1px solid rgba(201,168,76,0.1); padding: 4rem; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; }
+  .footer-brand .logo { display: block; margin-bottom: 1rem; font-size: 1.4rem; }
+  .footer-desc { font-size: 0.75rem; color: rgba(249,245,238,0.3); line-height: 1.8; max-width: 240px; }
+  .footer-col h5 { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.2rem; }
+  .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+  .footer-col ul a { font-size: 0.75rem; color: rgba(249,245,238,0.35); text-decoration: none; transition: color 0.3s; }
+  .footer-col ul a:hover { color: var(--gold); }
+  .footer-bottom { padding: 1.5rem 4rem; background: var(--dark); border-top: 1px solid rgba(201,168,76,0.05); display: flex; justify-content: space-between; font-size: 0.65rem; color: rgba(249,245,238,0.2); letter-spacing: 0.08em; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  .hero-tagline { animation: fadeUp 1s ease 0.1s both; }
+
+  @media (max-width: 900px) {
+    nav { padding: 1.2rem 1.5rem; }
+    nav ul { display: none; }
+    .hero { padding: 8rem 1.5rem 4rem; }
+    .hero-stats { position: static; flex-direction: row; flex-wrap: wrap; margin-top: 3rem; }
+    section { padding: 4rem 1.5rem; }
+    #booking, #wallet-section { grid-template-columns: 1fr; gap: 3rem; }
+    .services-grid, .fleet-grid, .testimonials-grid, .cars-grid { grid-template-columns: 1fr; }
+    footer { grid-template-columns: 1fr 1fr; }
+    .fleet-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--dark2); border: 1px solid rgba(201,168,76,0.3); color: var(--white); padding: 1rem 1.5rem; font-size: 0.78rem; z-index: 9999; transform: translateY(100px); opacity: 0; transition: all 0.4s; max-width: 320px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(50,180,50,0.4); }
+  .toast.error { border-color: rgba(220,50,50,0.4); }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('authModal')">&times;</button>
+    <div class="modal-title">Sterling Aviation</div>
+    <div class="modal-sub">Sign in or create your account</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="modal-tab" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+    <div id="authError" class="error-msg"></div>
+    <div id="authSuccess" class="success-msg"></div>
+
+    <!-- LOGIN -->
+    <div class="auth-form active" id="loginForm">
+      <div class="fg"><label>Email Address</label><input type="email" id="loginEmail" placeholder="emeka@example.com"/></div>
+      <div class="fg"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••"/></div>
+      <button class="submit-btn" onclick="handleLogin()">Sign In →</button>
+      <div class="auth-switch">Don't have an account? <a onclick="switchAuthTab('signup')">Create one</a></div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="auth-form" id="signupForm">
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="fg"><label>First Name</label><input type="text" id="signupFirst" placeholder="Emeka"/></div>
+        <div class="fg"><label>Last Name</label><input type="text" id="signupLast" placeholder="Okafor"/></div>
+      </div>
+      <div class="fg"><label>Email Address</label><input type="email" id="signupEmail" placeholder="emeka@example.com"/></div>
+      <div class="fg"><label>Phone Number</label><input type="tel" id="signupPhone" placeholder="+234 800 000 0000"/></div>
+      <div class="fg"><label>Password</label><input type="password" id="signupPassword" placeholder="Min. 6 characters"/></div>
+      <button class="submit-btn" onclick="handleSignup()">Create Account →</button>
+      <div class="auth-switch">Already have an account? <a onclick="switchAuthTab('login')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD MODAL -->
+<div class="modal-overlay" id="dashModal">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('dashModal')">&times;</button>
+    <div class="dash-header">
+      <div class="dash-greeting">Hello, <span id="dashName">Emeka</span></div>
+      <button class="signout-btn" onclick="handleSignOut()">Sign Out</button>
+    </div>
+
+    <!-- WALLET CARD -->
+    <div class="wallet-card">
+      <div class="wc-label">Sterling Wallet Balance</div>
+      <div class="wc-balance" id="dashBalance">₦0</div>
+      <div class="wc-btns">
+        <button class="wc-btn primary" onclick="showSection('topup')">Top Up Wallet</button>
+        <button class="wc-btn" onclick="showSection('transactions')">Transactions</button>
+        <button class="wc-btn" onclick="showSection('bookings')">My Bookings</button>
+      </div>
+    </div>
+
+    <!-- BOOKINGS -->
+    <div class="dash-section" id="sec-bookings">
+      <div class="dash-section-title">Recent Bookings</div>
+      <div id="bookingsList"><div class="empty-state">No bookings yet. Charter your first flight!</div></div>
+    </div>
+
+    <!-- TOP UP -->
+    <div class="dash-section" id="sec-topup" style="display:none">
+      <div class="dash-section-title">Top Up Wallet</div>
+      <div id="topupError" class="error-msg"></div>
+      <div class="topup-amounts">
+        <div class="ta-pill" onclick="selectTopup(this,'50000')">₦50,000</div>
+        <div class="ta-pill selected" onclick="selectTopup(this,'100000')">₦100,000</div>
+        <div class="ta-pill" onclick="selectTopup(this,'250000')">₦250,000</div>
+        <div class="ta-pill" onclick="selectTopup(this,'500000')">₦500,000</div>
+        <div class="ta-pill" onclick="selectTopup(this,'1000000')">₦1,000,000</div>
+        <div class="ta-pill" onclick="selectTopup(this,'custom')">Custom</div>
+      </div>
+      <div class="fg"><label>Amount (NGN)</label><input type="number" id="topupAmount" value="100000" placeholder="Enter amount"/></div>
+      <div class="fg"><label>Your Email (for receipt)</label><input type="email" id="topupEmail" placeholder="emeka@example.com"/></div>
+      <button class="submit-btn" onclick="initiateTopup()">Proceed to Payment →</button>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div class="dash-section" id="sec-transactions" style="display:none">
+      <div class="dash-section-title">Transaction History</div>
+      <div id="transactionsList"><div class="empty-state">No transactions yet.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('bookingModal')">&times;</button>
+    <div class="modal-title">Charter Request</div>
+    <div class="modal-sub">We confirm availability within 2 hours</div>
+    <div id="bookingError" class="error-msg"></div>
+    <div id="bookingSuccess" class="success-msg"></div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" onclick="setType(this)">One Way</button>
+      <button class="toggle-btn" onclick="setType(this)">Return</button>
+      <button class="toggle-btn" onclick="setType(this)">Multi-Leg</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="fg"><label>From</label><input type="text" id="bFrom" placeholder="Lagos (LOS)"/></div>
+      <div class="fg"><label>To</label><input type="text" id="bTo" placeholder="Abuja (ABV)"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="fg"><label>Departure Date</label><input type="date" id="bDate"/></div>
+      <div class="fg"><label>Passengers</label><select id="bPax"><option>1</option><option>2–4</option><option>5–8</option><option>9–14</option><option>15+</option></select></div>
+    </div>
+    <div class="fg"><label>Jet Category</label><select id="bJet"><option>Any — Recommend Best</option><option>Light Jet (1–6 pax)</option><option>Midsize Jet (6–8 pax)</option><option>Heavy Jet (9–16 pax)</option><option>Ultra Long Range</option></select></div>
+    <div class="fg"><label>Luxury Car Transfer</label><select id="bCar"><option value="none">No Transfer Needed</option><option value="pickup">Pickup to Airport</option><option value="dropoff">Drop-off from Airport</option><option value="both">Both Pickup & Drop-off</option></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="fg"><label>Full Name</label><input type="text" id="bName" placeholder="Emeka Okafor"/></div>
+      <div class="fg"><label>Phone</label><input type="tel" id="bPhone" placeholder="+234 800 000 0000"/></div>
+    </div>
+    <div class="fg"><label>Special Requests (optional)</label><textarea id="bNotes" rows="2" placeholder="Any special requirements..."></textarea></div>
+    <button class="submit-btn" onclick="submitBooking()">Submit Charter Request →</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Sterling <span>Aviation</span></div>
+  <ul>
+    <li><a onclick="scrollTo2('services')">Services</a></li>
+    <li><a onclick="scrollTo2('fleet')">Fleet</a></li>
+    <li><a onclick="openBooking()">Book</a></li>
+    <li><a onclick="scrollTo2('wallet-section')">Wallet</a></li>
+    <li><a onclick="scrollTo2('cars')">Transfers</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-auth-btns" id="navAuthBtns">
+      <button class="nav-login" onclick="openModal('authModal')">Sign In</button>
+      <button class="nav-cta" onclick="openBooking()">Charter Now</button>
+    </div>
+    <div class="nav-user" id="navUser">
+      <div class="nav-avatar" id="navAvatar" onclick="openModal('dashModal')">EO</div>
+      <span class="nav-user-name" id="navUserName" onclick="openModal('dashModal')">Emeka</span>
+      <button class="nav-cta" onclick="openBooking()">Charter Now</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-line"></div>
+  <p class="hero-tagline">Nigeria's Premier Private Aviation</p>
+  <h1>Fly Beyond<br>the <em>Ordinary</em></h1>
+  <p class="hero-sub">Sterling Aviation redefines private travel — bespoke charters, seamless booking, and door-to-door luxury car service across Nigeria and beyond.</p>
+  <div class="hero-actions">
+    <button class="btn-primary" onclick="openBooking()">Book a Charter</button>
+    <button class="btn-outline" onclick="scrollTo2('fleet')">Explore Fleet</button>
+  </div>
+  <div class="hero-stats">
+    <div><div class="stat-num">50+</div><div class="stat-label">Aircraft Available</div></div>
+    <div><div class="stat-num">24/7</div><div class="stat-label">Concierge Support</div></div>
+    <div><div class="stat-num">NG</div><div class="stat-label">Nationwide Coverage</div></div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <p class="section-label">What We Offer</p>
+  <h2 class="section-title">A Full Suite of <em>Luxury Services</em></h2>
+  <div class="services-grid">
+    <div class="service-card">
+      <div class="service-num">01</div>
+      <div class="service-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.5H2l4-9h12l4 9z"/><path d="M6.5 16.5L5 20h14l-1.5-3.5"/></svg></div>
+      <h3>Private Jet Charter</h3>
+      <p>Tailored charter flights to your schedule. Choose your aircraft, route, and departure time for solo travellers or full corporate delegations.</p>
+    </div>
+    <div class="service-card">
+      <div class="service-num">02</div>
+      <div class="service-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4V2m8 2V2M3 10h18"/></svg></div>
+      <h3>Booking & Ticketing</h3>
+      <p>Instant booking with digital ticketing. Manage your itinerary, passenger manifests, and travel documents from your dashboard.</p>
+    </div>
+    <div class="service-card">
+      <div class="service-num">03</div>
+      <div class="service-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/></svg></div>
+      <h3>Luxury Car Transfer</h3>
+      <p>Premium chauffeur-driven vehicles to pick you up and deliver you to the airport and back — seamlessly extending your first-class experience.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BOOKING -->
+<section id="booking">
+  <div>
+    <p class="section-label">Book Your Flight</p>
+    <h2 class="section-title">Reserve Your <em>Charter</em></h2>
+    <div class="gold-divider"></div>
+    <p style="font-size:0.82rem;color:rgba(249,245,238,0.5);line-height:1.9;margin-bottom:2rem">Submit your request and our concierge confirms within 2 hours. Pay from your Sterling Wallet or linked card.</p>
+  </div>
+  <div class="booking-form">
+    <div class="form-title">Quick Charter</div>
+    <div class="form-sub">Fast-track your booking request</div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" onclick="setType(this)">One Way</button>
+      <button class="toggle-btn" onclick="setType(this)">Return</button>
+      <button class="toggle-btn" onclick="setType(this)">Multi-Leg</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label style="font-size:0.6rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:rgba(249,245,238,0.45)">From</label><input class="fg input" type="text" id="qFrom" placeholder="Lagos (LOS)" style="background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.18);color:var(--white);font-family:var(--font-body);font-size:0.82rem;padding:0.75rem 1rem;outline:none;width:100%"/></div>
+      <div class="form-group"><label style="font-size:0.6rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:rgba(249,245,238,0.45)">To</label><input type="text" id="qTo" placeholder="Abuja (ABV)" style="background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.18);color:var(--white);font-family:var(--font-body);font-size:0.82rem;padding:0.75rem 1rem;outline:none;width:100%"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label style="font-size:0.6rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:rgba(249,245,238,0.45)">Date</label><input type="date" id="qDate" style="background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.18);color:var(--white);font-family:var(--font-body);font-size:0.82rem;padding:0.75rem 1rem;outline:none;width:100%"/></div>
+      <div class="form-group"><label style="font-size:0.6rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:rgba(249,245,238,0.45)">Passengers</label><select id="qPax" style="background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.18);color:var(--white);font-family:var(--font-body);font-size:0.82rem;padding:0.75rem 1rem;outline:none;width:100%;appearance:none"><option>1</option><option>2–4</option><option>5–8</option><option>9+</option></select></div>
+    </div>
+    <button class="submit-btn" onclick="openBookingPrefilled()">Request Charter →</button>
+  </div>
+</section>
+
+<!-- FLEET -->
+<section id="fleet">
+  <div class="fleet-header">
+    <div><p class="section-label">Our Aircraft</p><h2 class="section-title">The <em>Fleet</em></h2></div>
+    <button class="btn-outline" onclick="openBooking()">Charter Any Aircraft</button>
+  </div>
+  <div class="fleet-grid">
+    <div class="jet-card">
+      <div class="jet-visual"><svg viewBox="0 0 200 80"><path d="M20,50 Q80,30 160,45 L180,42 L160,50 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M70,45 L90,25 L110,25 L100,45" fill="rgba(201,168,76,0.12)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="35" cy="52" r="3" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="50" cy="52" r="3" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-info"><div class="jet-category">Light Jet</div><div class="jet-name">Citation CJ3+</div><div class="jet-specs"><div class="jet-spec"><strong>6</strong>Passengers</div><div class="jet-spec"><strong>3,300 km</strong>Range</div><div class="jet-spec"><strong>778 km/h</strong>Speed</div></div></div>
+    </div>
+    <div class="jet-card">
+      <div class="jet-visual"><svg viewBox="0 0 200 80"><path d="M15,48 Q90,25 165,43 L185,40 L165,48 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M65,43 L85,18 L115,18 L105,43" fill="rgba(201,168,76,0.12)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="30" cy="50" r="4" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="48" cy="50" r="4" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-info"><div class="jet-category">Midsize Jet</div><div class="jet-name">Hawker 900XP</div><div class="jet-specs"><div class="jet-spec"><strong>9</strong>Passengers</div><div class="jet-spec"><strong>5,500 km</strong>Range</div><div class="jet-spec"><strong>820 km/h</strong>Speed</div></div></div>
+    </div>
+    <div class="jet-card">
+      <div class="jet-visual"><svg viewBox="0 0 200 80"><path d="M10,50 Q90,22 168,44 L192,40 L168,52 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M60,44 L80,14 L120,14 L108,44" fill="rgba(201,168,76,0.18)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="25" cy="52" r="5" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="45" cy="52" r="5" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-info"><div class="jet-category">Heavy Jet</div><div class="jet-name">Gulfstream G550</div><div class="jet-specs"><div class="jet-spec"><strong>16</strong>Passengers</div><div class="jet-spec"><strong>12,500 km</strong>Range</div><div class="jet-spec"><strong>905 km/h</strong>Speed</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- WALLET SECTION -->
+<section id="wallet-section">
+  <div class="wallet-preview">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <div class="wp-chip"></div>
+      <div class="wp-logo">STERLING</div>
+    </div>
+    <div class="wp-num">•••• &nbsp; •••• &nbsp; •••• &nbsp; 4291</div>
+    <div class="wp-bot">
+      <div><div class="wp-holder-label">Card Holder</div><div class="wp-name" id="walletName">Your Name</div></div>
+      <div><div class="wp-bal-label">Balance</div><div class="wp-balance" id="walletBalance">₦0</div></div>
+    </div>
+  </div>
+  <div>
+    <p class="section-label">Sterling Wallet</p>
+    <h2 class="section-title">Your Personal <em>Aviation Wallet</em></h2>
+    <div class="gold-divider"></div>
+    <p style="font-size:0.82rem;color:rgba(249,245,238,0.5);line-height:1.9;margin-bottom:1.5rem">Fund your Sterling Wallet and pay for charters, tickets, and car transfers instantly. Your balance is securely stored and ready whenever you fly.</p>
+    <div class="wallet-features">
+      <div class="wallet-feature">Fund via bank transfer or card through Paystack</div>
+      <div class="wallet-feature">Pay for any Sterling service instantly</div>
+      <div class="wallet-feature">Full transaction history in your dashboard</div>
+      <div class="wallet-feature">Secure NGN-denominated balance</div>
+      <div class="wallet-feature">Top up at any time, no minimum</div>
+    </div>
+    <button class="btn-primary" onclick="openWallet()">Fund Your Wallet →</button>
+  </div>
+</section>
+
+<!-- CARS -->
+<section id="cars">
+  <div class="cars-inner">
+    <p class="section-label">Ground Transport</p>
+    <h2 class="section-title">Door-to-Door <em>Luxury Transfers</em></h2>
+    <div class="gold-divider"></div>
+    <p>Every Sterling charter can be paired with our exclusive chauffeur service. From your home or office to the tarmac — in vehicles that match your flight.</p>
+    <button class="btn-outline" onclick="openBooking()">Add Transfer to Booking</button>
+  </div>
+  <div class="cars-grid">
+    <div class="car-item"><div class="car-badge">Executive</div><h3>Mercedes S-Class</h3><p>The definitive executive sedan for solo travellers and couples.</p></div>
+    <div class="car-item"><div class="car-badge">Premium SUV</div><h3>Range Rover Autobiography</h3><p>Commanding presence for groups of up to 4 passengers.</p></div>
+    <div class="car-item"><div class="car-badge">Group Transfer</div><h3>Mercedes V-Class</h3><p>Seat up to 6 in first-class comfort for families or delegations.</p></div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <p class="section-label">Client Voices</p>
+  <h2 class="section-title">Trusted by <em>Discerning Travellers</em></h2>
+  <div class="testimonials-grid">
+    <div class="testimonial"><p>Sterling Aviation made what used to be a stressful 6-hour drive into a seamless 45-minute flight. The car was waiting when I landed.</p><div class="testimonial-author">Adaeze Nwachukwu</div><div class="testimonial-role">CEO, Lagos</div></div>
+    <div class="testimonial"><p>The booking process is effortless. I funded my wallet and flew to Port Harcourt the next day. No back and forth, no hassle at all.</p><div class="testimonial-author">Babatunde Fashola Jr.</div><div class="testimonial-role">Investment Director, Abuja</div></div>
+    <div class="testimonial"><p>I've used private aviation in Dubai and London. Sterling matches that standard — and the Nigerian hospitality makes it even better.</p><div class="testimonial-author">Ngozi Obi-Adeyemi</div><div class="testimonial-role">Entrepreneur, Enugu</div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <div class="logo">Sterling <span>Aviation</span></div>
+    <p class="footer-desc">Nigeria's premier private jet charter service. Redefining how the continent's finest travel.</p>
+  </div>
+  <div class="footer-col"><h5>Services</h5><ul><li><a href="#">Jet Charter</a></li><li><a href="#">Ticketing</a></li><li><a href="#">Car Transfers</a></li><li><a href="#">Sterling Wallet</a></li></ul></div>
+  <div class="footer-col"><h5>Company</h5><ul><li><a href="#">About Us</a></li><li><a href="#">Our Fleet</a></li><li><a href="#">Safety</a></li><li><a href="#">Careers</a></li></ul></div>
+  <div class="footer-col"><h5>Contact</h5><ul><li><a href="#">+234 800 STERLING</a></li><li><a href="#"><span class="__cf_email__" data-cfemail="680b00091a1c0d1a1b281b1c0d1a0401060f091e01091c01070646060f">[email&#160;protected]</span></a></li><li><a href="#">Lagos · Abuja · PH</a></li></ul></div>
+</footer>
+<div class="footer-bottom"><span>© 2025 Sterling Aviation. All rights reserved.</span><span>Privacy Policy &nbsp;|&nbsp; Terms of Service</span></div>
+
+<!-- FIREBASE SDK -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDh44ZuHacl6LWtMyrzt3ciXjcqeFSYem0",
+    authDomain: "sterling-aviation.firebaseapp.com",
+    projectId: "sterling-aviation",
+    storageBucket: "sterling-aviation.firebasestorage.app",
+    messagingSenderId: "1092677135359",
+    appId: "1:1092677135359:web:8fb83a346486144bce95ca",
+    measurementId: "G-WNFX9XXG13"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
+  let userData = null;
+
+  // AUTH STATE
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      currentUser = user;
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        userData = snap.data();
+        updateNavUI(userData);
+        updateWalletCard(userData);
+      }
+    } else {
+      currentUser = null;
+      userData = null;
+      document.getElementById('navAuthBtns').style.display = 'flex';
+      document.getElementById('navUser').classList.remove('show');
+      document.getElementById('walletName').textContent = 'Your Name';
+      document.getElementById('walletBalance').textContent = '₦0';
+    }
+  });
+
+  function updateNavUI(data) {
+    document.getElementById('navAuthBtns').style.display = 'none';
+    document.getElementById('navUser').classList.add('show');
+    const initials = (data.firstName[0] + data.lastName[0]).toUpperCase();
+    document.getElementById('navAvatar').textContent = initials;
+    document.getElementById('navUserName').textContent = data.firstName;
+  }
+
+  function updateWalletCard(data) {
+    document.getElementById('walletName').textContent = data.firstName + ' ' + data.lastName;
+    document.getElementById('walletBalance').textContent = '₦' + Number(data.walletBalance || 0).toLocaleString();
+  }
+
+  // SIGNUP
+  window.handleSignup = async function() {
+    const first = document.getElementById('signupFirst').value.trim();
+    const last = document.getElementById('signupLast').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const phone = document.getElementById('signupPhone').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const errEl = document.getElementById('authError');
+    const sucEl = document.getElementById('authSuccess');
+    errEl.style.display = 'none'; sucEl.style.display = 'none';
+    if (!first || !last || !email || !phone || !password) { errEl.textContent = 'Please fill in all fields.'; errEl.style.display = 'block'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        firstName: first, lastName: last, email, phone,
+        walletBalance: 0, createdAt: serverTimestamp()
+      });
+      showToast('Welcome to Sterling Aviation, ' + first + '!', 'success');
+      closeModal('authModal');
+    } catch(e) {
+      errEl.textContent = e.code === 'auth/email-already-in-use' ? 'This email is already registered.' : e.message;
+      errEl.style.display = 'block';
+    }
+  };
+
+  // LOGIN
+  window.handleLogin = async function() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('authError');
+    errEl.style.display = 'none';
+    if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      showToast('Welcome back!', 'success');
+      closeModal('authModal');
+    } catch(e) {
+      errEl.textContent = 'Invalid email or password. Please try again.';
+      errEl.style.display = 'block';
+    }
+  };
+
+  // SIGN OUT
+  window.handleSignOut = async function() {
+    await signOut(auth);
+    closeModal('dashModal');
+    showToast('You have been signed out.', '');
+  };
+
+  // OPEN DASHBOARD
+  window.openDashboard = async function() {
+    if (!currentUser) { openModal('authModal'); return; }
+    const snap = await getDoc(doc(db, 'users', currentUser.uid));
+    userData = snap.data();
+    document.getElementById('dashName').textContent = userData.firstName;
+    document.getElementById('dashBalance').textContent = '₦' + Number(userData.walletBalance || 0).toLocaleString();
+    document.getElementById('topupEmail').value = userData.email || '';
+    await loadBookings();
+    showSection('bookings');
+    openModal('dashModal');
+  };
+
+  // LOAD BOOKINGS
+  async function loadBookings() {
+    if (!currentUser) return;
+    const q = query(collection(db, 'bookings'), where('userId', '==', currentUser.uid));
+    const snap = await getDocs(q);
+    const list = document.getElementById('bookingsList');
+    if (snap.empty) { list.innerHTML = '<div class="empty-state">No bookings yet. Charter your first flight!</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(d => {
+      const b = d.data();
+      list.innerHTML += `<div class="booking-item">
+        <div class="bi-icon">✈</div>
+        <div class="bi-info">
+          <div class="bi-route">${b.from} → ${b.to}</div>
+          <div class="bi-date">${b.date} · ${b.jetCategory}</div>
+          <span class="bi-status pending">Pending Confirmation</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  // LOAD TRANSACTIONS
+  async function loadTransactions() {
+    if (!currentUser) return;
+    const q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid));
+    const snap = await getDocs(q);
+    const list = document.getElementById('transactionsList');
+    if (snap.empty) { list.innerHTML = '<div class="empty-state">No transactions yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(d => {
+      const t = d.data();
+      const isCredit = t.type === 'topup';
+      list.innerHTML += `<div class="tx-item">
+        <div class="tx-dot ${isCredit ? 'cr' : 'db'}">${isCredit ? '↑' : '↓'}</div>
+        <div class="tx-info"><div class="tx-name">${t.description}</div><div class="tx-date">${new Date(t.createdAt?.toDate()).toLocaleDateString('en-NG')}</div></div>
+        <div class="tx-val ${isCredit ? 'cr' : 'db'}">${isCredit ? '+' : '-'}₦${Number(t.amount).toLocaleString()}</div>
+      </div>`;
+    });
+  }
+
+  // SUBMIT BOOKING
+  window.submitBooking = async function() {
+    if (!currentUser) { closeModal('bookingModal'); openModal('authModal'); return; }
+    const from = document.getElementById('bFrom').value.trim();
+    const to = document.getElementById('bTo').value.trim();
+    const date = document.getElementById('bDate').value;
+    const pax = document.getElementById('bPax').value;
+    const jet = document.getElementById('bJet').value;
+    const car = document.getElementById('bCar').value;
+    const name = document.getElementById('bName').value.trim();
+    const phone = document.getElementById('bPhone').value.trim();
+    const notes = document.getElementById('bNotes').value.trim();
+    const errEl = document.getElementById('bookingError');
+    const sucEl = document.getElementById('bookingSuccess');
+    errEl.style.display = 'none'; sucEl.style.display = 'none';
+    if (!from || !to || !date || !name || !phone) { errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; return; }
+    try {
+      await addDoc(collection(db, 'bookings'), {
+        userId: currentUser.uid, userEmail: currentUser.email,
+        from, to, date, passengers: pax, jetCategory: jet,
+        carTransfer: car, contactName: name, contactPhone: phone,
+        notes, status: 'pending', createdAt: serverTimestamp()
+      });
+      sucEl.textContent = 'Charter request submitted! Our team will confirm within 2 hours.';
+      sucEl.style.display = 'block';
+      showToast('Charter request submitted successfully!', 'success');
+      setTimeout(() => closeModal('bookingModal'), 2500);
+    } catch(e) {
+      errEl.textContent = 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+    }
+  };
+
+  // TOPUP WITH PAYSTACK
+  window.initiateTopup = async function() {
+    if (!currentUser) return;
+    const amount = parseInt(document.getElementById('topupAmount').value);
+    const email = document.getElementById('topupEmail').value.trim();
+    const errEl = document.getElementById('topupError');
+    errEl.style.display = 'none';
+    if (!amount || amount < 1000) { errEl.textContent = 'Minimum top-up is ₦1,000.'; errEl.style.display = 'block'; return; }
+    if (!email) { errEl.textContent = 'Please enter your email.'; errEl.style.display = 'block'; return; }
+
+    const handler = PaystackPop.setup({
+      key: 'pk_test_c478d0d8d4b17899c31ba7ea1497f32cc3d5ef03',
+      email: email,
+      amount: amount * 100,
+      currency: 'NGN',
+      ref: 'STR_' + Date.now(),
+      metadata: { userId: currentUser.uid },
+      callback: async function(response) {
+        await updateDoc(doc(db, 'users', currentUser.uid), { walletBalance: increment(amount) });
+        await addDoc(collection(db, 'transactions'), {
+          userId: currentUser.uid, type: 'topup',
+          amount, description: 'Wallet Top Up',
+          reference: response.reference, createdAt: serverTimestamp()
+        });
+        const snap = await getDoc(doc(db, 'users', currentUser.uid));
+        userData = snap.data();
+        document.getElementById('dashBalance').textContent = '₦' + Number(userData.walletBalance).toLocaleString();
+        updateWalletCard(userData);
+        showToast('₦' + Number(amount).toLocaleString() + ' added to your wallet!', 'success');
+        showSection('transactions');
+        await loadTransactions();
+      },
+      onClose: function() { showToast('Payment cancelled.', ''); }
+    });
+    handler.openIframe();
+  };
+
+  window.openWallet = function() {
+    if (!currentUser) { openModal('authModal'); return; }
+    openDashboard().then(() => showSection('topup'));
+  };
+
+  // Make openDashboard available to nav avatar click
+  document.getElementById('navAvatar').onclick = openDashboard;
+  document.getElementById('navUserName').onclick = openDashboard;
+</script>
+
+<!-- PAYSTACK -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+  window.openModal = function(id) { document.getElementById(id).classList.add('open'); }
+  window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); }
+  window.scrollTo2 = function(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+  window.openBooking = function() {
+    document.getElementById('bookingError').style.display = 'none';
+    document.getElementById('bookingSuccess').style.display = 'none';
+    openModal('bookingModal');
+  }
+
+  window.openBookingPrefilled = function() {
+    document.getElementById('bFrom').value = document.getElementById('qFrom').value;
+    document.getElementById('bTo').value = document.getElementById('qTo').value;
+    document.getElementById('bDate').value = document.getElementById('qDate').value;
+    document.getElementById('bPax').value = document.getElementById('qPax').value;
+    openBooking();
+  }
+
+  window.switchAuthTab = function(tab) {
+    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    document.getElementById('authError').style.display = 'none';
+    document.getElementById('authSuccess').style.display = 'none';
+    if (tab === 'login') {
+      document.querySelectorAll('.modal-tab')[0].classList.add('active');
+      document.getElementById('loginForm').classList.add('active');
+    } else {
+      document.querySelectorAll('.modal-tab')[1].classList.add('active');
+      document.getElementById('signupForm').classList.add('active');
+    }
+  }
+
+  window.setType = function(btn) {
+    btn.closest('.toggle-row').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  window.showSection = function(name) {
+    ['bookings', 'topup', 'transactions'].forEach(s => {
+      document.getElementById('sec-' + s).style.display = s === name ? 'block' : 'none';
+    });
+    if (name === 'transactions') loadTransactions();
+  }
+
+  window.selectTopup = function(el, val) {
+    document.querySelectorAll('.ta-pill').forEach(p => p.classList.remove('selected'));
+    el.classList.add('selected');
+    if (val === 'custom') { document.getElementById('topupAmount').value = ''; document.getElementById('topupAmount').focus(); }
+    else document.getElementById('topupAmount').value = val;
+  }
+
+  window.loadTransactions = function() {}
+
+  window.showToast = function(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.classNa
