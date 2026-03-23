@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sterling Aviation — Private Jet Charter Nigeria</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<!-- Firebase SDKs via CDN (compat version - works with normal scripts) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+// ─── FIREBASE INIT ───
+const firebaseConfig = {
+  apiKey: "AIzaSyDh44ZuHacl6LWtMyrzt3ciXjcqeFSYem0",
+  authDomain: "sterling-aviation.firebaseapp.com",
+  projectId: "sterling-aviation",
+  storageBucket: "sterling-aviation.firebasestorage.app",
+  messagingSenderId: "1092677135359",
+  appId: "1:1092677135359:web:8fb83a346486144bce95ca"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUser = null;
+let userData = null;
+
+// ─── AUTH STATE LISTENER ───
+auth.onAuthStateChanged(async function(user) {
+  if (user) {
+    currentUser = user;
+    const snap = await db.collection('users').doc(user.uid).get();
+    if (snap.exists) {
+      userData = snap.data();
+      showLoggedInNav(userData);
+      updateWalletCard(userData);
+    }
+  } else {
+    currentUser = null;
+    userData = null;
+    showLoggedOutNav();
+  }
+});
+
+function showLoggedInNav(data) {
+  document.getElementById('navAuthBtns').style.display = 'none';
+  document.getElementById('navUser').style.display = 'flex';
+  const initials = (data.firstName[0] + data.lastName[0]).toUpperCase();
+  document.getElementById('navAvatar').textContent = initials;
+  document.getElementById('navUserName').textContent = data.firstName;
+}
+
+function showLoggedOutNav() {
+  document.getElementById('navAuthBtns').style.display = 'flex';
+  document.getElementById('navUser').style.display = 'none';
+  document.getElementById('walletName').textContent = 'Your Name';
+  document.getElementById('walletBalance').textContent = '₦0';
+}
+
+function updateWalletCard(data) {
+  document.getElementById('walletName').textContent = data.firstName + ' ' + data.lastName;
+  document.getElementById('walletBalance').textContent = '₦' + Number(data.walletBalance || 0).toLocaleString();
+}
+
+// ─── MODAL HELPERS ───
+function openModal(id) {
+  document.getElementById(id).style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ─── AUTH TAB SWITCH ───
+function switchAuthTab(tab) {
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
+  document.getElementById('authError').style.display = 'none';
+}
+
+// ─── SIGNUP ───
+async function handleSignup() {
+  const first = document.getElementById('signupFirst').value.trim();
+  const last = document.getElementById('signupLast').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const pass = document.getElementById('signupPassword').value;
+  const err = document.getElementById('authError');
+  err.style.display = 'none';
+
+  if (!first || !last || !email || !phone || !pass) {
+    err.textContent = 'Please fill in all fields.';
+    err.style.display = 'block'; return;
+  }
+  if (pass.length < 6) {
+    err.textContent = 'Password must be at least 6 characters.';
+    err.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('signupBtn');
+  btn.textContent = 'Creating Account...'; btn.disabled = true;
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.collection('users').doc(cred.user.uid).set({
+      firstName: first, lastName: last, email, phone,
+      walletBalance: 0, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('authModal');
+    showToast('Welcome to Sterling Aviation, ' + first + '!', 'success');
+  } catch(e) {
+    err.textContent = e.code === 'auth/email-already-in-use' ? 'Email already registered. Please sign in.' : e.message;
+    err.style.display = 'block';
+  }
+  btn.textContent = 'Create Account →'; btn.disabled = false;
+}
+
+// ─── LOGIN ───
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const err = document.getElementById('authError');
+  err.style.display = 'none';
+  if (!email || !pass) { err.textContent = 'Please enter your email and password.'; err.style.display = 'block'; return; }
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing In...'; btn.disabled = true;
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+    closeModal('authModal');
+    showToast('Welcome back!', 'success');
+  } catch(e) {
+    err.textContent = 'Incorrect email or password. Please try again.';
+    err.style.display = 'block';
+  }
+  btn.textContent = 'Sign In →'; btn.disabled = false;
+}
+
+// ─── SIGN OUT ───
+async function handleSignOut() {
+  await auth.signOut();
+  closeModal('dashModal');
+  showToast('You have been signed out.', '');
+}
+
+// ─── OPEN BOOKING ───
+function openBooking() {
+  document.getElementById('bookingError').style.display = 'none';
+  document.getElementById('bookingSuccess').style.display = 'none';
+  openModal('bookingModal');
+}
+
+function openBookingPrefilled() {
+  document.getElementById('bFrom').value = document.getElementById('qFrom').value;
+  document.getElementById('bTo').value = document.getElementById('qTo').value;
+  document.getElementById('bDate').value = document.getElementById('qDate').value;
+  openBooking();
+}
+
+// ─── SUBMIT BOOKING ───
+async function submitBooking() {
+  if (!currentUser) { closeModal('bookingModal'); openModal('authModal'); return; }
+  const from = document.getElementById('bFrom').value.trim();
+  const to = document.getElementById('bTo').value.trim();
+  const date = document.getElementById('bDate').value;
+  const pax = document.getElementById('bPax').value;
+  const jet = document.getElementById('bJet').value;
+  const car = document.getElementById('bCar').value;
+  const name = document.getElementById('bName').value.trim();
+  const phone = document.getElementById('bPhone').value.trim();
+  const notes = document.getElementById('bNotes').value.trim();
+  const err = document.getElementById('bookingError');
+  const suc = document.getElementById('bookingSuccess');
+  err.style.display = 'none'; suc.style.display = 'none';
+
+  if (!from || !to || !date || !name || !phone) {
+    err.textContent = 'Please fill in all required fields.';
+    err.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('bookingBtn');
+  btn.textContent = 'Submitting...'; btn.disabled = true;
+  try {
+    await db.collection('bookings').add({
+      userId: currentUser.uid, userEmail: currentUser.email,
+      from, to, date, passengers: pax, jetCategory: jet,
+      carTransfer: car, contactName: name, contactPhone: phone,
+      notes, status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    suc.textContent = 'Charter request submitted! Our team will confirm within 2 hours.';
+    suc.style.display = 'block';
+    showToast('Charter request submitted!', 'success');
+    setTimeout(() => closeModal('bookingModal'), 2500);
+  } catch(e) {
+    err.textContent = 'Something went wrong. Please try again.';
+    err.style.display = 'block';
+  }
+  btn.textContent = 'Submit Charter Request →'; btn.disabled = false;
+}
+
+// ─── OPEN DASHBOARD ───
+async function openDashboard() {
+  if (!currentUser) { openModal('authModal'); return; }
+  const snap = await db.collection('users').doc(currentUser.uid).get();
+  userData = snap.data();
+  document.getElementById('dashName').textContent = userData.firstName;
+  document.getElementById('dashBalance').textContent = '₦' + Number(userData.walletBalance || 0).toLocaleString();
+  document.getElementById('topupEmail').value = userData.email || '';
+  showDashSection('bookings');
+  await loadBookings();
+  openModal('dashModal');
+}
+
+function showDashSection(name) {
+  ['bookings','topup','transactions'].forEach(function(s) {
+    document.getElementById('sec-' + s).style.display = s === name ? 'block' : 'none';
+  });
+  if (name === 'transactions') loadTransactions();
+}
+
+// ─── LOAD BOOKINGS ───
+async function loadBookings() {
+  if (!currentUser) return;
+  const snap = await db.collection('bookings').where('userId','==',currentUser.uid).orderBy('createdAt','desc').get();
+  const list = document.getElementById('bookingsList');
+  if (snap.empty) { list.innerHTML = '<div class="empty-state">No bookings yet. Charter your first flight!</div>'; return; }
+  list.innerHTML = '';
+  snap.forEach(function(d) {
+    const b = d.data();
+    list.innerHTML += '<div class="booking-item"><div class="bi-icon">✈</div><div class="bi-info"><div class="bi-route">' + b.from + ' → ' + b.to + '</div><div class="bi-date">' + b.date + ' · ' + b.jetCategory + '</div><span class="bi-status pending">Pending Confirmation</span></div></div>';
+  });
+}
+
+// ─── LOAD TRANSACTIONS ───
+async function loadTransactions() {
+  if (!currentUser) return;
+  const snap = await db.collection('transactions').where('userId','==',currentUser.uid).orderBy('createdAt','desc').get();
+  const list = document.getElementById('transactionsList');
+  if (snap.empty) { list.innerHTML = '<div class="empty-state">No transactions yet.</div>'; return; }
+  list.innerHTML = '';
+  snap.forEach(function(d) {
+    const t = d.data();
+    const isCredit = t.type === 'topup';
+    const date = t.createdAt ? t.createdAt.toDate().toLocaleDateString('en-NG') : '';
+    list.innerHTML += '<div class="tx-item"><div class="tx-dot ' + (isCredit?'cr':'db') + '">' + (isCredit?'↑':'↓') + '</div><div class="tx-info"><div class="tx-name">' + t.description + '</div><div class="tx-date">' + date + '</div></div><div class="tx-val ' + (isCredit?'cr':'db') + '">' + (isCredit?'+':'-') + '₦' + Number(t.amount).toLocaleString() + '</div></div>';
+  });
+}
+
+// ─── TOP UP WALLET ───
+function selectTopup(el, val) {
+  document.querySelectorAll('.ta-pill').forEach(function(p) { p.classList.remove('selected'); });
+  el.classList.add('selected');
+  if (val === 'custom') { document.getElementById('topupAmount').value = ''; document.getElementById('topupAmount').focus(); }
+  else document.getElementById('topupAmount').value = val;
+}
+
+async function initiateTopup() {
+  if (!currentUser) return;
+  const amount = parseInt(document.getElementById('topupAmount').value);
+  const email = document.getElementById('topupEmail').value.trim();
+  const err = document.getElementById('topupError');
+  err.style.display = 'none';
+  if (!amount || amount < 1000) { err.textContent = 'Minimum top-up is ₦1,000.'; err.style.display = 'block'; return; }
+  if (!email) { err.textContent = 'Please enter your email address.'; err.style.display = 'block'; return; }
+
+  var handler = PaystackPop.setup({
+    key: 'pk_test_c478d0d8d4b17899c31ba7ea1497f32cc3d5ef03',
+    email: email,
+    amount: amount * 100,
+    currency: 'NGN',
+    ref: 'STR_' + Date.now(),
+    callback: async function(response) {
+      await db.collection('users').doc(currentUser.uid).update({
+        walletBalance: firebase.firestore.FieldValue.increment(amount)
+      });
+      await db.collection('transactions').add({
+        userId: currentUser.uid, type: 'topup',
+        amount: amount, description: 'Wallet Top Up',
+        reference: response.reference,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      const snap = await db.collection('users').doc(currentUser.uid).get();
+      userData = snap.data();
+      document.getElementById('dashBalance').textContent = '₦' + Number(userData.walletBalance).toLocaleString();
+      updateWalletCard(userData);
+      showToast('₦' + Number(amount).toLocaleString() + ' added to your wallet!', 'success');
+      showDashSection('transactions');
+    },
+    onClose: function() { showToast('Payment cancelled.', ''); }
+  });
+  handler.openIframe();
+}
+
+function openWallet() {
+  if (!currentUser) { openModal('authModal'); return; }
+  openDashboard().then(function() { showDashSection('topup'); });
+}
+
+// ─── HELPERS ───
+function setTripType(btn) {
+  btn.closest('.toggle-row').querySelectorAll('.toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+function smoothScroll(id) {
+  document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(function() { t.className = 'toast'; }, 3500);
+}
+
+// Close modals on overlay click
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-overlay').forEach(function(o) {
+    o.addEventListener('click', function(e) {
+      if (e.target === o) closeModal(o.id);
+    });
+  });
+});
+</script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C9A84C;--gold-light:#E8D08A;
+  --black:#0A0A0A;--dark:#111111;--dark2:#1A1A1A;--dark3:#242424;
+  --white:#F9F5EE;
+  --fd:'Cormorant Garamond',serif;--fb:'Montserrat',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--black);color:var(--white);font-family:var(--fb);font-weight:300;overflow-x:hidden}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--dark2);border:1px solid rgba(201,168,76,0.3);color:var(--white);padding:1rem 1.5rem;font-size:0.78rem;z-index:9999;transform:translateY(120px);opacity:0;transition:all 0.4s;max-width:320px;font-family:var(--fb)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:rgba(50,180,50,0.4)}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:500;align-items:center;justify-content:center;padding:1rem}
+.modal{background:var(--dark2);border:1px solid rgba(201,168,76,0.2);padding:2.5rem;width:100%;max-width:440px;position:relative;max-height:90vh;overflow-y:auto;border-radius:2px}
+.modal-close{position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:rgba(249,245,238,0.35);font-size:1.6rem;cursor:pointer;line-height:1;font-family:var(--fb)}
+.modal-close:hover{color:var(--gold)}
+.modal-title{font-family:var(--fd);font-size:1.9rem;font-weight:400;margin-bottom:0.3rem;color:var(--white)}
+.modal-sub{font-size:0.72rem;color:rgba(249,245,238,0.4);margin-bottom:1.5rem;letter-spacing:0.04em}
+.modal-tabs{display:flex;border:1px solid rgba(201,168,76,0.2);overflow:hidden;margin-bottom:1.5rem;border-radius:3px}
+.modal-tab{flex:1;padding:0.75rem;font-size:0.65rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;border:none;background:transparent;color:rgba(249,245,238,0.4);cursor:pointer;font-family:var(--fb);transition:all 0.2s}
+.modal-tab.active{background:var(--gold);color:var(--black)}
+.err-msg{background:rgba(220,50,50,0.1);border:1px solid rgba(220,50,50,0.3);color:#ff7070;font-size:0.72rem;padding:0.7rem 1rem;margin-bottom:1rem;display:none;border-radius:2px}
+.suc-msg{background:rgba(50,180,50,0.1);border:1px solid rgba(50,180,50,0.3);color:#5dca7a;font-size:0.72rem;padding:0.7rem 1rem;margin-bottom:1rem;display:none;border-radius:2px}
+
+/* FORM ELEMENTS */
+.fg{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1rem}
+.fg label{font-size:0.6rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:rgba(249,245,238,0.45)}
+.fg input,.fg select,.fg textarea{background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.2);color:var(--white);font-family:var(--fb);font-size:0.82rem;padding:0.75rem 1rem;outline:none;transition:border-color 0.3s;width:100%;appearance:none;border-radius:2px}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold)}
+.fg input::placeholder,.fg textarea::placeholder{color:rgba(249,245,238,0.2)}
+.fg select option{background:#1A1A1A;color:var(--white)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.sub-btn{width:100%;background:var(--gold);color:var(--black);border:none;font-family:var(--fb);font-size:0.7rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;padding:1rem;cursor:pointer;transition:background 0.3s;margin-top:0.5rem;border-radius:2px}
+.sub-btn:hover{background:var(--gold-light)}
+.sub-btn:disabled{opacity:0.5;cursor:not-allowed}
+.auth-switch{text-align:center;margin-top:1rem;font-size:0.72rem;color:rgba(249,245,238,0.4)}
+.auth-switch a{color:var(--gold);cursor:pointer;text-decoration:underline}
+
+/* DASHBOARD */
+.dash-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.dash-greeting{font-family:var(--fd);font-size:1.5rem;font-weight:400;color:var(--white)}
+.dash-greeting em{color:var(--gold);font-style:italic}
+.signout-btn{font-size:0.62rem;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(249,245,238,0.4);background:none;border:1px solid rgba(201,168,76,0.2);padding:0.4rem 0.9rem;cursor:pointer;font-family:var(--fb);transition:all 0.2s;border-radius:2px}
+.signout-btn:hover{color:var(--gold);border-color:var(--gold)}
+.wal-card{background:var(--dark3);border:1px solid rgba(201,168,76,0.25);border-radius:10px;padding:1.5rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
+.wal-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(201,168,76,0.05);border-radius:50%}
+.wc-label{font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(249,245,238,0.35);margin-bottom:0.3rem}
+.wc-bal{font-family:var(--fd);font-size:2.2rem;font-weight:600;color:var(--gold);margin-bottom:1rem}
+.wc-btns{display:flex;gap:0.6rem;flex-wrap:wrap}
+.wc-btn{flex:1;min-width:80px;padding:0.6rem 0.4rem;font-size:0.6rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;border:1px solid rgba(201,168,76,0.25);background:transparent;color:rgba(249,245,238,0.6);cursor:pointer;font-family:var(--fb);transition:all 0.2s;border-radius:2px;white-space:nowrap}
+.wc-btn.primary{background:var(--gold);border-color:var(--gold);color:var(--black)}
+.wc-btn:hover{opacity:0.8}
+.dash-sec-title{font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(249,245,238,0.35);margin-bottom:0.8rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(201,168,76,0.08)}
+.booking-item{display:flex;align-items:center;gap:0.8rem;padding:0.8rem 0;border-bottom:1px solid rgba(201,168,76,0.07)}
+.booking-item:last-child{border-bottom:none}
+.bi-icon{width:2.2rem;height:2.2rem;background:var(--dark3);border:1px solid rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem}
+.bi-route{font-size:0.82rem;font-weight:500;color:var(--white)}
+.bi-date{font-size:0.68rem;color:rgba(249,245,238,0.4);margin-top:0.15rem}
+.bi-status{display:inline-block;font-size:0.6rem;padding:0.2rem 0.5rem;border-radius:3px;margin-top:0.3rem;background:rgba(201,168,76,0.12);color:var(--gold)}
+.topup-amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-bottom:1rem}
+.ta-pill{padding:0.65rem 0.4rem;border:1px solid rgba(201,168,76,0.18);background:transparent;color:rgba(249,245,238,0.5);font-size:0.7rem;font-weight:500;cursor:pointer;font-family:var(--fb);transition:all 0.2s;text-align:center;border-radius:2px}
+.ta-pill.selected,.ta-pill:hover{background:rgba(201,168,76,0.12);border-color:var(--gold);color:var(--gold)}
+.tx-item{display:flex;align-items:center;gap:0.8rem;padding:0.75rem 0;border-bottom:1px solid rgba(201,168,76,0.06)}
+.tx-item:last-child{border-bottom:none}
+.tx-dot{width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem}
+.tx-dot.cr{background:rgba(50,180,50,0.15);color:#5dca7a}
+.tx-dot.db{background:rgba(201,168,76,0.1);color:var(--gold)}
+.tx-name{font-size:0.8rem;font-weight:500;color:var(--white)}
+.tx-date{font-size:0.65rem;color:rgba(249,245,238,0.35);margin-top:0.1rem}
+.tx-val{font-size:0.8rem;font-weight:600;margin-left:auto}
+.tx-val.cr{color:#5dca7a}
+.tx-val.db{color:var(--gold)}
+.empty-state{text-align:center;padding:2rem;color:rgba(249,245,238,0.3);font-size:0.75rem}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 3rem;border-bottom:1px solid rgba(201,168,76,0.12);background:rgba(10,10,10,0.95);backdrop-filter:blur(10px)}
+.logo{font-family:var(--fd);font-size:1.5rem;font-weight:600;color:var(--gold);cursor:pointer;letter-spacing:0.06em}
+.logo span{color:var(--white);font-weight:300}
+.nav-links{display:flex;gap:2rem}
+.nav-links a{font-size:0.68rem;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:rgba(249,245,238,0.6);cursor:pointer;transition:color 0.2s}
+.nav-links a:hover{color:var(--gold)}
+.nav-right{display:flex;align-items:center;gap:0.8rem}
+#navAuthBtns{display:flex;gap:0.8rem}
+#navUser{display:none;align-items:center;gap:0.8rem}
+.nav-login{font-size:0.65rem;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);background:transparent;border:1px solid rgba(201,168,76,0.35);padding:0.55rem 1.3rem;cursor:pointer;font-family:var(--fb);transition:all 0.2s;border-radius:2px}
+.nav-login:hover{border-color:var(--gold)}
+.nav-cta{font-size:0.65rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--black);background:var(--gold);padding:0.55rem 1.5rem;border:none;cursor:pointer;font-family:var(--fb);transition:background 0.2s;border-radius:2px}
+.nav-cta:hover{background:var(--gold-light)}
+.nav-avatar{width:2.2rem;height:2.2rem;border-radius:50%;background:rgba(201,168,76,0.18);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:600;color:var(--gold);cursor:pointer}
+.nav-uname{font-size:0.72rem;color:rgba(249,245,238,0.7);cursor:pointer}
+.nav-uname:hover{color:var(--gold)}
+
+/* HERO */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 3rem;overflow:hidden;background:linear-gradient(135deg,#0A0A0A 0%,#141410 100%)}
+.hero-accent{position:absolute;top:0;bottom:0;left:55%;right:0;background:rgba(201,168,76,0.025);border-left:1px solid rgba(201,168,76,0.08)}
+.hero-tag{font-size:0.68rem;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;display:flex;align-items:center;gap:0.8rem}
+.hero-tag::before{content:'';width:2.5rem;height:1px;background:var(--gold);display:inline-block}
+.hero h1{font-family:var(--fd);font-size:clamp(3.5rem,7vw,7rem);font-weight:300;line-height:1.05;max-width:680px;margin-bottom:1.2rem}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:0.82rem;color:rgba(249,245,238,0.5);max-width:420px;line-height:1.9;margin-bottom:2.5rem;letter-spacing:0.02em}
+.hero-btns{display:flex;gap:1rem;flex-wrap:wrap}
+.btn-p{display:inline-block;background:var(--gold);color:var(--black);font-size:0.68rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;padding:1rem 2.5rem;border:none;cursor:pointer;font-family:var(--fb);transition:background 0.2s;border-radius:2px}
+.btn-p:hover{background:var(--gold-light)}
+.btn-o{display:inline-block;border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-size:0.68rem;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;padding:1rem 2.5rem;background:transparent;cursor:pointer;font-family:var(--fb);transition:all 0.2s;border-radius:2px}
+.btn-o:hover{border-color:var(--gold);background:rgba(201,168,76,0.05)}
+.hero-stats{display:flex;gap:3rem;margin-top:4rem;flex-wrap:wrap}
+.stat .n{font-family:var(--fd);font-size:2.8rem;font-weight:600;color:var(--gold);line-height:1}
+.stat .l{font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(249,245,238,0.3);margin-top:0.2rem}
+
+/* SECTIONS */
+section{padding:6rem 3rem}
+.sec-label{font-size:0.62rem;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:0.8rem;display:flex;align-items:center;gap:0.8rem}
+.sec-label::before{content:'';width:2rem;height:1px;background:var(--gold);display:inline-block}
+.sec-h{font-family:var(--fd);font-size:clamp(2.2rem,4vw,3.8rem);font-weight:300;line-height:1.1}
+.sec-h em{font-style:italic;color:var(--gold)}
+.divider{width:3rem;height:1px;background:var(--gold);margin:2rem 0}
+
+/* SERVICES */
+#services{background:var(--dark)}
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.1);margin-top:3.5rem}
+.svc{background:var(--dark);padding:2.5rem 2rem;position:relative;transition:background 0.3s}
+.svc:hover{background:var(--dark2)}
+.svc-num{position:absolute;top:1.5rem;right:2rem;font-family:var(--fd);font-size:3.5rem;font-weight:300;color:rgba(201,168,76,0.07);line-height:1}
+.svc-icon{width:2.8rem;height:2.8rem;border:1px solid rgba(201,168,76,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem;color:var(--gold)}
+.svc h3{font-family:var(--fd);font-size:1.3rem;font-weight:400;margin-bottom:0.8rem;color:var(--white)}
+.svc p{font-size:0.78rem;color:rgba(249,245,238,0.45);line-height:1.9}
+
+/* BOOKING SECTION */
+#booking{background:var(--black);display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start}
+.bk-form{background:var(--dark2);border:1px solid rgba(201,168,76,0.15);padding:2.5rem}
+.bk-form-title{font-family:var(--fd);font-size:1.7rem;font-weight:400;margin-bottom:0.3rem;color:var(--white)}
+.bk-form-sub{font-size:0.72rem;color:rgba(249,245,238,0.35);margin-bottom:1.5rem}
+.toggle-row{display:flex;border:1px solid rgba(201,168,76,0.18);overflow:hidden;margin-bottom:1rem;border-radius:2px}
+.toggle-btn{flex:1;padding:0.65rem;font-size:0.6rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;border:none;background:transparent;color:rgba(249,245,238,0.4);cursor:pointer;font-family:var(--fb);transition:all 0.2s}
+.toggle-btn.active{background:var(--gold);color:var(--black);font-weight:600}
+
+/* FLEET */
+#fleet{background:var(--dark)}
+.fleet-hd{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:3rem;flex-wrap:wrap;gap:1rem}
+.fleet-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.2rem}
+.jet{border:1px solid rgba(201,168,76,0.12);overflow:hidden;transition:border-color 0.3s,transform 0.3s;cursor:pointer}
+.jet:hover{border-color:rgba(201,168,76,0.4);transform:translateY(-4px)}
+.jet-vis{height:160px;background:var(--dark3);display:flex;align-items:center;justify-content:center;position:relative}
+.jet-vis::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--gold),transparent)}
+.jet-vis svg{width:75%;opacity:0.55}
+.jet-body{padding:1.3rem}
+.jet-cat{font-size:0.58rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:0.4rem}
+.jet-name{font-family:var(--fd);font-size:1.3rem;font-weight:400;margin-bottom:0.8rem;color:var(--white)}
+.jet-specs{display:flex;gap:1.2rem;flex-wrap:wrap}
+.jet-spec{font-size:0.65rem;color:rgba(249,245,238,0.4)}
+.jet-spec strong{display:block;font-weight:500;color:var(--white);font-size:0.8rem;margin-bottom:0.1rem}
+
+/* WALLET SECTION */
+#wallet-sec{background:var(--black);display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+.wal-preview{background:var(--dark3);border:1px solid rgba(201,168,76,0.25);border-radius:12px;padding:2rem;max-width:360px}
+.wp-chip{width:2.2rem;height:1.6rem;background:linear-gradient(135deg,#C9A84C,#7a5c1a);border-radius:3px;margin-bottom:1.5rem}
+.wp-logo{font-family:var(--fd);font-size:1rem;font-weight:600;color:var(--gold);text-align:right;margin-bottom:1.5rem}
+.wp-num{font-family:monospace;font-size:0.85rem;letter-spacing:0.2em;color:rgba(249,245,238,0.6);margin-bottom:1.5rem}
+.wp-bot{display:flex;justify-content:space-between;align-items:flex-end}
+.wp-hl{font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(249,245,238,0.3);margin-bottom:0.2rem}
+.wp-hv{font-size:0.75rem;font-weight:500;color:var(--white)}
+.wp-bl{font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(249,245,238,0.3);margin-bottom:0.2rem;text-align:right}
+.wp-bv{font-family:var(--fd);font-size:1.5rem;font-weight:600;color:var(--gold);text-align:right}
+.wal-feats{display:flex;flex-direction:column;gap:0.7rem;margin:1.5rem 0 2rem}
+.wal-feat{font-size:0.76rem;color:rgba(249,245,238,0.5);display:flex;align-items:center;gap:0.7rem}
+.wal-feat::before{content:'';width:1.2rem;height:1px;background:var(--gold);flex-shrink:0}
+
+/* CARS */
+#cars{background:var(--dark);text-align:center}
+.cars-inner{max-width:660px;margin:0 auto}
+.cars-inner .sec-label{justify-content:center}
+.cars-inner .sec-label::before{display:none}
+.cars-inner .divider{margin:1.5rem auto}
+.cars-inner>p{font-size:0.8rem;color:rgba(249,245,238,0.45);line-height:1.9;margin-bottom:2.5rem}
+.cars-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.08);margin-top:3rem;text-align:left}
+.car{padding:2rem;background:var(--dark)}
+.car-badge{display:inline-block;font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,168,76,0.25);padding:0.25rem 0.6rem;margin-bottom:0.8rem}
+.car h3{font-family:var(--fd);font-size:1.1rem;margin-bottom:0.5rem;font-weight:400;color:var(--white)}
+.car p{font-size:0.7rem;color:rgba(249,245,238,0.35);line-height:1.7}
+
+/* TESTIMONIALS */
+#testimonials{background:var(--black)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:3rem}
+.tcard{border:1px solid rgba(201,168,76,0.1);padding:2.5rem;position:relative}
+.tcard::before{content:'\201C';font-family:var(--fd);font-size:5rem;color:rgba(201,168,76,0.1);position:absolute;top:0.5rem;left:1.5rem;line-height:1}
+.tcard p{font-size:0.78rem;color:rgba(249,245,238,0.55);line-height:1.9;font-style:italic;margin-bottom:1.2rem}
+.tauthor{font-size:0.68rem;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--white)}
+.trole{font-size:0.62rem;color:var(--gold);margin-top:0.2rem}
+
+/* FOOTER */
+footer{background:var(--dark);border-top:1px solid rgba(201,168,76,0.1);padding:4rem 3rem;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem}
+.flogo{font-family:var(--fd);font-size:1.4rem;font-weight:600;color:var(--gold);display:block;margin-bottom:0.8rem;letter-spacing:0.06em}
+.flogo span{color:var(--white);font-weight:300}
+.fdesc{font-size:0.72rem;color:rgba(249,245,238,0.3);line-height:1.8;max-width:220px}
+footer h5{font-size:0.58rem;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem}
+footer ul{list-style:none;display:flex;flex-direction:column;gap:0.6rem}
+footer ul a{font-size:0.72rem;color:rgba(249,245,238,0.35);text-decoration:none;cursor:pointer;transition:color 0.2s}
+footer ul a:hover{color:var(--gold)}
+.fbot{padding:1.2rem 3rem;background:var(--dark);border-top:1px solid rgba(201,168,76,0.05);display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;font-size:0.62rem;color:rgba(249,245,238,0.2);letter-spacing:0.06em}
+
+@media(max-width:800px){
+  nav{padding:1rem 1.2rem}
+  .nav-links{display:none}
+  .hero{padding:5rem 1.2rem 3rem;min-height:auto}
+  section{padding:4rem 1.2rem}
+  #booking,#wallet-sec{grid-template-columns:1fr;gap:2.5rem}
+  footer{grid-template-columns:1fr 1fr;padding:3rem 1.2rem}
+  .fbot{padding:1rem 1.2rem}
+  .fleet-hd{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('authModal')">&times;</button>
+    <div class="modal-title">Sterling Aviation</div>
+    <div class="modal-sub">Your private aviation account</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="modal-tab" id="tabSignup" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+    <div class="err-msg" id="authError"></div>
+
+    <div id="loginForm">
+      <div class="fg"><label>Email Address</label><input type="email" id="loginEmail" placeholder="emeka@example.com"/></div>
+      <div class="fg"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••"/></div>
+      <button class="sub-btn" id="loginBtn" onclick="handleLogin()">Sign In →</button>
+      <div class="auth-switch">No account? <a onclick="switchAuthTab('signup')">Create one free</a></div>
+    </div>
+
+    <div id="signupForm" style="display:none">
+      <div class="fg2">
+        <div class="fg"><label>First Name</label><input type="text" id="signupFirst" placeholder="Emeka"/></div>
+        <div class="fg"><label>Last Name</label><input type="text" id="signupLast" placeholder="Okafor"/></div>
+      </div>
+      <div class="fg"><label>Email Address</label><input type="email" id="signupEmail" placeholder="emeka@example.com"/></div>
+      <div class="fg"><label>Phone Number</label><input type="tel" id="signupPhone" placeholder="+234 800 000 0000"/></div>
+      <div class="fg"><label>Password</label><input type="password" id="signupPassword" placeholder="Minimum 6 characters"/></div>
+      <button class="sub-btn" id="signupBtn" onclick="handleSignup()">Create Account →</button>
+      <div class="auth-switch">Already have an account? <a onclick="switchAuthTab('login')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD MODAL -->
+<div class="modal-overlay" id="dashModal">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('dashModal')">&times;</button>
+    <div class="dash-hd">
+      <div class="dash-greeting">Hello, <em id="dashName">there</em></div>
+      <button class="signout-btn" onclick="handleSignOut()">Sign Out</button>
+    </div>
+    <div class="wal-card">
+      <div class="wc-label">Sterling Wallet Balance</div>
+      <div class="wc-bal" id="dashBalance">₦0</div>
+      <div class="wc-btns">
+        <button class="wc-btn primary" onclick="showDashSection('topup')">Top Up</button>
+        <button class="wc-btn" onclick="showDashSection('bookings')">Bookings</button>
+        <button class="wc-btn" onclick="showDashSection('transactions')">History</button>
+      </div>
+    </div>
+
+    <div id="sec-bookings">
+      <div class="dash-sec-title">My Charter Requests</div>
+      <div id="bookingsList"><div class="empty-state">No bookings yet.</div></div>
+    </div>
+
+    <div id="sec-topup" style="display:none">
+      <div class="dash-sec-title">Top Up Wallet</div>
+      <div class="err-msg" id="topupError"></div>
+      <div class="topup-amounts">
+        <div class="ta-pill" onclick="selectTopup(this,'50000')">₦50k</div>
+        <div class="ta-pill selected" onclick="selectTopup(this,'100000')">₦100k</div>
+        <div class="ta-pill" onclick="selectTopup(this,'250000')">₦250k</div>
+        <div class="ta-pill" onclick="selectTopup(this,'500000')">₦500k</div>
+        <div class="ta-pill" onclick="selectTopup(this,'1000000')">₦1M</div>
+        <div class="ta-pill" onclick="selectTopup(this,'custom')">Custom</div>
+      </div>
+      <div class="fg"><label>Amount (NGN)</label><input type="number" id="topupAmount" value="100000" placeholder="Enter amount"/></div>
+      <div class="fg"><label>Email for Receipt</label><input type="email" id="topupEmail" placeholder="emeka@example.com"/></div>
+      <button class="sub-btn" onclick="initiateTopup()">Pay with Paystack →</button>
+    </div>
+
+    <div id="sec-transactions" style="display:none">
+      <div class="dash-sec-title">Transaction History</div>
+      <div id="transactionsList"><div class="empty-state">No transactions yet.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('bookingModal')">&times;</button>
+    <div class="modal-title">Charter Request</div>
+    <div class="modal-sub">Confirmed within 2 hours — 24/7</div>
+    <div class="err-msg" id="bookingError"></div>
+    <div class="suc-msg" id="bookingSuccess"></div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" onclick="setTripType(this)">One Way</button>
+      <button class="toggle-btn" onclick="setTripType(this)">Return</button>
+      <button class="toggle-btn" onclick="setTripType(this)">Multi-Leg</button>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>From</label><input type="text" id="bFrom" placeholder="Lagos (LOS)"/></div>
+      <div class="fg"><label>To</label><input type="text" id="bTo" placeholder="Abuja (ABV)"/></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Departure Date</label><input type="date" id="bDate"/></div>
+      <div class="fg"><label>Passengers</label><select id="bPax"><option>1</option><option>2–4</option><option>5–8</option><option>9–14</option><option>15+</option></select></div>
+    </div>
+    <div class="fg"><label>Jet Category</label><select id="bJet"><option>Any — Recommend Best</option><option>Light Jet (1–6 pax)</option><option>Midsize Jet (6–8 pax)</option><option>Heavy Jet (9–16 pax)</option><option>Ultra Long Range</option></select></div>
+    <div class="fg"><label>Luxury Car Transfer</label><select id="bCar"><option value="none">No Transfer Needed</option><option value="pickup">Pickup to Airport</option><option value="dropoff">Drop-off from Airport</option><option value="both">Both Pickup & Drop-off</option></select></div>
+    <div class="fg2">
+      <div class="fg"><label>Full Name</label><input type="text" id="bName" placeholder="Emeka Okafor"/></div>
+      <div class="fg"><label>Phone Number</label><input type="tel" id="bPhone" placeholder="+234 800 000 0000"/></div>
+    </div>
+    <div class="fg"><label>Special Requests (optional)</label><textarea id="bNotes" rows="2" placeholder="Any special requirements..."></textarea></div>
+    <button class="sub-btn" id="bookingBtn" onclick="submitBooking()">Submit Charter Request →</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Sterling <span>Aviation</span></div>
+  <div class="nav-links">
+    <a onclick="smoothScroll('services')">Services</a>
+    <a onclick="smoothScroll('fleet')">Fleet</a>
+    <a onclick="openBooking()">Book</a>
+    <a onclick="smoothScroll('wallet-sec')">Wallet</a>
+    <a onclick="smoothScroll('cars')">Transfers</a>
+  </div>
+  <div class="nav-right">
+    <div id="navAuthBtns">
+      <button class="nav-login" onclick="openModal('authModal')">Sign In</button>
+      <button class="nav-cta" onclick="openBooking()">Charter Now</button>
+    </div>
+    <div id="navUser">
+      <div class="nav-avatar" id="navAvatar" onclick="openDashboard()">SA</div>
+      <span class="nav-uname" id="navUserName" onclick="openDashboard()">Account</span>
+      <button class="nav-cta" onclick="openBooking()">Charter Now</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-accent"></div>
+  <p class="hero-tag">Nigeria's Premier Private Aviation</p>
+  <h1>Fly Beyond<br>the <em>Ordinary</em></h1>
+  <p class="hero-sub">Sterling Aviation redefines private travel — bespoke charters, seamless booking, and door-to-door luxury car service across Nigeria and beyond.</p>
+  <div class="hero-btns">
+    <button class="btn-p" onclick="openBooking()">Book a Charter</button>
+    <button class="btn-o" onclick="smoothScroll('fleet')">Explore Fleet</button>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="n">50+</div><div class="l">Aircraft Available</div></div>
+    <div class="stat"><div class="n">24/7</div><div class="l">Concierge Support</div></div>
+    <div class="stat"><div class="n">NG</div><div class="l">Nationwide Coverage</div></div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <p class="sec-label">What We Offer</p>
+  <h2 class="sec-h">A Full Suite of <em>Luxury Services</em></h2>
+  <div class="svc-grid">
+    <div class="svc">
+      <div class="svc-num">01</div>
+      <div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.5H2l4-9h12l4 9z"/><path d="M6.5 16.5L5 20h14l-1.5-3.5"/></svg></div>
+      <h3>Private Jet Charter</h3>
+      <p>Tailored charter flights to your schedule. Choose your aircraft, route, and departure time for solo travellers or full corporate delegations.</p>
+    </div>
+    <div class="svc">
+      <div class="svc-num">02</div>
+      <div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4V2m8 2V2M3 10h18"/></svg></div>
+      <h3>Booking & Ticketing</h3>
+      <p>Instant booking with digital ticketing. Manage your itinerary, passenger manifests, and travel documents from your dashboard.</p>
+    </div>
+    <div class="svc">
+      <div class="svc-num">03</div>
+      <div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/></svg></div>
+      <h3>Luxury Car Transfer</h3>
+      <p>Premium chauffeur-driven vehicles to pick you up and deliver you to the airport and back — seamlessly extending your first-class experience.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BOOKING SECTION -->
+<section id="booking">
+  <div>
+    <p class="sec-label">Book Your Flight</p>
+    <h2 class="sec-h">Reserve Your <em>Charter</em></h2>
+    <div class="divider"></div>
+    <p style="font-size:0.82rem;color:rgba(249,245,238,0.5);line-height:1.9;margin-bottom:2rem">Submit your request and our concierge confirms within 2 hours. Pay from your Sterling Wallet or linked card.</p>
+  </div>
+  <div class="bk-form">
+    <div class="bk-form-title">Quick Charter</div>
+    <div class="bk-form-sub">Fast-track your booking</div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" onclick="setTripType(this)">One Way</button>
+      <button class="toggle-btn" onclick="setTripType(this)">Return</button>
+      <button class="toggle-btn" onclick="setTripType(this)">Multi-Leg</button>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>From</label><input type="text" id="qFrom" placeholder="Lagos (LOS)"/></div>
+      <div class="fg"><label>To</label><input type="text" id="qTo" placeholder="Abuja (ABV)"/></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Date</label><input type="date" id="qDate"/></div>
+      <div class="fg"><label>Passengers</label><select id="qPax"><option>1</option><option>2–4</option><option>5–8</option><option>9+</option></select></div>
+    </div>
+    <button class="sub-btn" onclick="openBookingPrefilled()">Request Charter →</button>
+  </div>
+</section>
+
+<!-- FLEET -->
+<section id="fleet">
+  <div class="fleet-hd">
+    <div><p class="sec-label">Our Aircraft</p><h2 class="sec-h">The <em>Fleet</em></h2></div>
+    <button class="btn-o" onclick="openBooking()">Charter Any Aircraft</button>
+  </div>
+  <div class="fleet-grid">
+    <div class="jet" onclick="openBooking()">
+      <div class="jet-vis"><svg viewBox="0 0 200 80"><path d="M20,50 Q80,30 160,45 L180,42 L160,50 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M70,45 L90,25 L110,25 L100,45" fill="rgba(201,168,76,0.12)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="35" cy="52" r="3" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="50" cy="52" r="3" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-body"><div class="jet-cat">Light Jet</div><div class="jet-name">Citation CJ3+</div><div class="jet-specs"><div class="jet-spec"><strong>6</strong>Passengers</div><div class="jet-spec"><strong>3,300 km</strong>Range</div><div class="jet-spec"><strong>778 km/h</strong>Speed</div></div></div>
+    </div>
+    <div class="jet" onclick="openBooking()">
+      <div class="jet-vis"><svg viewBox="0 0 200 80"><path d="M15,48 Q90,25 165,43 L185,40 L165,48 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M65,43 L85,18 L115,18 L105,43" fill="rgba(201,168,76,0.12)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="30" cy="50" r="4" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="48" cy="50" r="4" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-body"><div class="jet-cat">Midsize Jet</div><div class="jet-name">Hawker 900XP</div><div class="jet-specs"><div class="jet-spec"><strong>9</strong>Passengers</div><div class="jet-spec"><strong>5,500 km</strong>Range</div><div class="jet-spec"><strong>820 km/h</strong>Speed</div></div></div>
+    </div>
+    <div class="jet" onclick="openBooking()">
+      <div class="jet-vis"><svg viewBox="0 0 200 80"><path d="M10,50 Q90,22 168,44 L192,40 L168,52 Z" fill="rgba(201,168,76,0.22)" stroke="rgba(201,168,76,0.45)" stroke-width="1"/><path d="M60,44 L80,14 L120,14 L108,44" fill="rgba(201,168,76,0.18)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/><circle cx="25" cy="52" r="5" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/><circle cx="45" cy="52" r="5" fill="rgba(201,168,76,0.25)" stroke="rgba(201,168,76,0.45)" stroke-width="0.8"/></svg></div>
+      <div class="jet-body"><div class="jet-cat">Heavy Jet</div><div class="jet-name">Gulfstream G550</div><div class="jet-specs"><div class="jet-spec"><strong>16</strong>Passengers</div><div class="jet-spec"><strong>12,500 km</strong>Range</div><div class="jet-spec"><strong>905 km/h</strong>Speed</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- WALLET -->
+<section id="wallet-sec">
+  <div class="wal-preview">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="wp-chip"></div>
+      <div class="wp-logo">STERLING</div>
+    </div>
+    <div class="wp-num">•••• &nbsp; •••• &nbsp; •••• &nbsp; 4291</div>
+    <div class="wp-bot">
+      <div><div class="wp-hl">Card Holder</div><div class="wp-hv" id="walletName">Your Name</div></div>
+      <div><div class="wp-bl">Balance</div><div class="wp-bv" id="walletBalance">₦0</div></div>
+    </div>
+  </div>
+  <div>
+    <p class="sec-label">Sterling Wallet</p>
+    <h2 class="sec-h">Your Personal <em>Aviation Wallet</em></h2>
+    <div class="divider"></div>
+    <p style="font-size:0.82rem;color:rgba(249,245,238,0.5);line-height:1.9;margin-bottom:1.5rem">Fund your Sterling Wallet and pay for charters, tickets, and car transfers instantly. No card needed at checkout.</p>
+    <div class="wal-feats">
+      <div class="wal-feat">Fund via bank transfer or card through Paystack</div>
+      <div class="wal-feat">Pay for any Sterling service instantly</div>
+      <div class="wal-feat">Full transaction history in your dashboard</div>
+      <div class="wal-feat">Secure NGN-denominated balance</div>
+      <div class="wal-feat">Top up anytime, no minimum limit</div>
+    </div>
+    <button class="btn-p" onclick="openWallet()">Fund Your Wallet →</button>
+  </div>
+</section>
+
+<!-- CARS -->
+<section id="cars">
+  <div class="cars-inner">
+    <p class="sec-label">Ground Transport</p>
+    <h2 class="sec-h">Door-to-Door <em>Luxury Transfers</em></h2>
+    <div class="divider"></div>
+    <p>Every Sterling charter can be paired with our exclusive chauffeur service — from your home to the tarmac and back.</p>
+    <button class="btn-o" onclick="openBooking()">Add Transfer to Booking</button>
+  </div>
+  <div class="cars-grid">
+    <div class="car"><div class="car-badge">Executive</div><h3>Mercedes S-Class</h3><p>The definitive executive sedan for solo travellers and couples.</p></div>
+    <div class="car"><div class="car-badge">Premium SUV</div><h3>Range Rover Autobiography</h3><p>Commanding presence for groups of up to 4 passengers.</p></div>
+    <div class="car"><div class="car-badge">Group Transfer</div><h3>Mercedes V-Class</h3><p>Seat up to 6 in first-class comfort for families or delegations.</p></div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <p class="sec-label">Client Voices</p>
+  <h2 class="sec-h">Trusted by <em>Discerning Travellers</em></h2>
+  <div class="tgrid">
+    <div class="tcard"><p>Sterling Aviation made what used to be a stressful 6-hour drive into a seamless 45-minute flight. The car was waiting when I landed.</p><div class="tauthor">Adaeze Nwachukwu</div><div class="trole">CEO, Lagos</div></div>
+    <div class="tcard"><p>The booking process is effortless. I funded my wallet and flew to Port Harcourt the next day. No back and forth, no hassle at all.</p><div class="tauthor">Babatunde Fashola Jr.</div><div class="trole">Investment Director, Abuja</div></div>
+    <div class="tcard"><p>I've used private aviation in Dubai and London. Sterling matches that standard — and the Nigerian hospitality makes it even better.</p><div class="tauthor">Ngozi Obi-Adeyemi</div><div class="trole">Entrepreneur, Enugu</div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <div class="flogo">Sterling <span>Aviation</span></div>
+    <p class="fdesc">Nigeria's premier private jet charter service. Redefining how the continent's finest travel.</p>
+  </div>
+  <div><h5>Services</h5><ul><li><a onclick="openBooking()">Jet Charter</a></li><li><a onclick="openBooking()">Ticketing</a></li><li><a onclick="openBooking()">Car Transfers</a></li><li><a onclick="openWallet()">Sterling Wallet</a></li></ul></div>
+  <div><h5>Company</h5><ul><li><a>About Us</a></li><li><a onclick="smoothScroll('fleet')">Our Fleet</a></li><li><a>Safety</a></li><li><a>Careers</a></li></ul></div>
+  <div><h5>Contact</h5><ul><li><a>+234 800 STERLING</a></li><li><a>charters@sterlingaviation.ng</a></li><li><a>Lagos · Abuja · PH</a></li></ul></div>
+</footer>
+<div class="fbot"><span>© 2025 Sterling Aviation. All rights reserved.</span><span>Privacy Policy &nbsp;|&nbsp; Terms of Service</span></div>
+
+</body>
+</html>
